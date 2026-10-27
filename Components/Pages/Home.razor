@@ -1,0 +1,559 @@
+﻿@page "/"
+
+@using System.Data
+@using FitnessCenterBlazor.Models
+@using FitnessCenterBlazor.Services
+
+@rendermode InteractiveServer
+
+@inject FitnessCenterDbService DbService
+@inject LanguageState LanguageState
+@inject NavigationManager NavigationManager
+
+@implements IDisposable
+
+<PageTitle>Fitness Center</PageTitle>
+
+<div class="fitness-center">
+
+    <!-- =========================================================
+         HEADER
+         ========================================================= -->
+
+    <div class="page-header">
+
+        <h1> @GetTitle() </h1>
+        <p> Dynamic Fitness Center Database </p>
+    </div>
+
+    <!-- LANGUAGE SELECTOR -->
+    <div class="toolbar">    </div>
+
+
+    <!-- DATABASE STATUS -->
+    <DatabaseStatus />
+
+    <!-- TABLE SELECTOR -->
+
+    <div class="master-section">
+        <TableSelector Tables="tableNames"
+                       SelectedTable="selectedTable"
+                       SelectedTableChanged="TableChanged" />
+    </div>
+
+
+    <!-- SELECTED TABLE-->
+    @if (!string.IsNullOrWhiteSpace(selectedTable))
+    {
+        <div class="detail-section">
+            <div class="section-header">
+                <h2> @selectedTable </h2>
+                <button type="button" @onclick="ShowAddForm"> + Add New</button>
+            </div>
+
+            <!-- CRUD FORM -->
+            @if (showForm)
+            {
+                <CrudForm TableName="selectedTable"
+                          Columns="columns"
+                          Values="formValues"
+                          EditMode="editMode"
+                          OnSave="SaveForm"
+                          OnCancel="CancelForm" />
+            }
+
+            <!-- DATA TABLE -->
+            @if (selectedData != null)
+            {
+                <DynamicTable Data="selectedData"
+                              Columns="columns"
+                              EditRow="EditRow"
+                              DeleteRow="DeleteRow" />
+            }
+            else
+            {
+                <p>Loading table data...</p>
+            }
+
+        </div>
+    }
+
+
+    <!-- ERROR MESSAGE -->
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="error-message">
+            <strong>Error:</strong> @errorMessage </div>
+    }
+
+    </div>
+
+
+@code
+{
+     // DATABASE DATA
+    
+    // All tables discovered from MySQL.
+    private List<string> tableNames = new();
+
+    // Currently selected table.
+    private string selectedTable = "";
+
+    // Data belonging to the selected table.
+    private DataTable? selectedData;
+
+    // Column metadata for the selected table.
+    private List<ColumnInfo> columns = new();
+
+
+    // CRUD FORM
+
+    // True = show Add/Edit form.
+    private bool showForm = false;
+
+    // True = editing an existing row.
+    // False = adding a new row.
+    private bool editMode = false;
+
+    // Values entered in the form.
+    private Dictionary<string, string> formValues = new();
+
+    // Primary-key value of the row being edited.
+    private object? editingPrimaryKey;
+
+    
+    // ERROR
+     private string errorMessage = "";
+
+    // INITIALIZATION
+   
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Listen for language changes.
+            LanguageState.LanguageChanged += LanguageChanged;
+
+            // Dynamically discover all database tables.
+            tableNames =
+                await DbService.GetTableNamesAsync();
+            await LoadServerFiles();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+
+    // LANGUAGE CHANGED
+    
+    private void LanguageChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+
+     // TABLE CHANGED
+   
+    private async Task TableChanged(string tableName)
+    {
+        try
+        {
+            errorMessage = "";
+            selectedTable = tableName;
+            selectedData = null;
+            columns.Clear();
+            formValues.Clear();
+            editingPrimaryKey = null;
+            showForm = false;
+            editMode = false;
+
+
+            // Nothing selected.
+            if (string.IsNullOrWhiteSpace(selectedTable))
+            {
+                return;
+            }
+
+            // Get column information dynamically.
+            
+            columns = await DbService.GetColumnsAsync(selectedTable);
+
+            // Get table data dynamically.
+            selectedData = await DbService.GetTableAsync(selectedTable);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+  
+    // ADD
+   
+    private void ShowAddForm()
+    {
+        errorMessage = "";
+        editMode = false;
+        editingPrimaryKey = null;
+        formValues = new Dictionary<string, string>();
+        foreach (var column in columns)
+        {
+            if (!column.IsAutoIncrement)
+            {
+                formValues[column.Name] = "";
+            }
+        }
+
+        showForm = true;
+    }
+
+    // EDIT
+
+    private void EditRow(DataRow row)
+    {
+        try
+        {
+            errorMessage = "";
+            editMode = true;
+            showForm = true;
+            formValues = new Dictionary<string, string>();
+
+           
+            // Find primary key automatically.
+
+            var primaryKey = columns.FirstOrDefault(column => column.IsPrimaryKey);
+
+            if (primaryKey == null)
+            {
+                throw new Exception(
+                    "The selected table has no primary key.");
+            }
+
+            // Remember primary-key value.
+            editingPrimaryKey =row[primaryKey.Name];
+
+            // Copy values into the form.
+    
+            foreach (var column in columns)
+            {
+                // Auto-increment primary keys should not
+                // normally be edited by the user.
+                if (column.IsAutoIncrement)
+                {
+                    continue;
+                }
+
+                object cellValue = row[column.Name];
+                if (cellValue == DBNull.Value)
+                {
+                    formValues[column.Name] = "";
+                }
+                else
+                {
+                    formValues[column.Name] =
+                        cellValue.ToString() ?? "";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    // SAVE
+    private async Task SaveForm()
+    {
+        try
+        {
+            errorMessage = "";
+            // Convert form strings to database values.
+            var values = new Dictionary<string, object?>();
+
+            foreach (var item in formValues)
+            {
+                values[item.Key] = ConvertValue( item.Key, item.Value);
+            }
+
+            // INSERT
+            if (!editMode)
+            {
+                await DbService.InsertDynamicAsync(
+                    selectedTable,
+                    values);
+            }
+
+            // UPDATE
+
+            else
+            {
+                if (editingPrimaryKey == null)
+                {
+                    throw new Exception(
+                        "Primary key value is missing.");
+                }
+
+
+                await DbService.UpdateDynamicAsync(
+                    selectedTable,
+                    editingPrimaryKey,
+                    values);
+            }
+                   
+            // Close form.    
+            showForm = false;
+            editMode = false;
+            editingPrimaryKey = null;
+
+            // Reload table.
+        
+            await ReloadSelectedTable();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+
+    // DELETE
+    private async Task DeleteRow(DataRow row)
+    {
+        try
+        {
+            errorMessage = "";
+
+            // Find primary key.
+             var primaryKey =
+                columns.FirstOrDefault(
+                    column => column.IsPrimaryKey);
+
+
+            if (primaryKey == null)
+            {
+                throw new Exception(
+                    "The selected table has no primary key.");
+            }
+
+            // Get primary-key value.
+            object primaryKeyValue = row[primaryKey.Name];
+
+            // Delete dynamically.
+               await DbService.DeleteDynamicAsync(selectedTable, primaryKeyValue);
+
+            // Reload table.
+            await ReloadSelectedTable();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    // RELOAD SELECTED TABLE
+    private async Task ReloadSelectedTable()
+    {
+        if (string.IsNullOrWhiteSpace(selectedTable))
+        {
+            return;
+        }
+
+
+        // Reload metadata.
+       columns =
+    await DbService.GetColumnsAsync(
+        selectedTable);
+
+        // Reload actual database data.
+        selectedData =
+            await DbService.GetTableAsync(
+                selectedTable);
+    }
+   
+    // CANCEL
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editMode = false;
+        editingPrimaryKey = null;
+        formValues.Clear();
+        errorMessage = "";
+    }
+
+    // CONVERT FORM VALUE
+
+    private object? ConvertValue(
+        string columnName,
+        string value)
+    {
+        // Empty value.
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return DBNull.Value;
+        }
+
+
+        // Find column metadata.
+        var column =
+            columns.FirstOrDefault(
+                c => c.Name == columnName);
+
+
+        if (column == null)
+        {
+            return value;
+        }
+
+        // INTEGER
+        if (column.DataType.Contains(
+                "int",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(
+                    value,
+                    out int intValue))
+            {
+                return intValue;
+            }
+
+
+            throw new Exception(
+                $"{columnName} must be a number.");
+        }
+
+        // DECIMAL / DOUBLE / FLOAT
+ 
+        if (column.DataType.Contains(
+                "decimal",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            column.DataType.Contains(
+                "double",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            column.DataType.Contains(
+                "float",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            if (decimal.TryParse(
+                    value,
+                    out decimal decimalValue))
+            {
+                return decimalValue;
+            }
+
+            throw new Exception(
+                $"{columnName} must be a decimal number.");
+        }
+
+        // DATE / TIME
+
+        if (column.DataType.Contains(
+                "date",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            column.DataType.Contains(
+                "time",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            if (DateTime.TryParse(
+                    value,
+                    out DateTime dateValue))
+            {
+                return dateValue;
+            }
+
+
+            throw new Exception(
+                $"{columnName} has an invalid date/time value.");
+        }
+
+        // TEXT
+        return value;
+    }
+
+    // PAGE TITLE
+    private string GetTitle()
+    {
+        if (LanguageState.CurrentLanguage == "Danish")
+        {
+            return "Fitnesscenter";
+        }
+
+        return "Fitness Center";
+    }
+
+
+    // DISPOSE
+
+    public void Dispose()
+    {
+        LanguageState.LanguageChanged -= LanguageChanged;
+    }
+
+
+
+    // SERVER FILE MANAGEMENT     
+    private List<string>? serverFiles;
+
+    // Load files from API
+    private async Task LoadServerFiles()
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+
+            var files = await httpClient.GetFromJsonAsync<List<FileInfoDto>>(
+                "https://localhost:7046/api/files");
+
+            serverFiles = files?
+                .Select(f => f.FileName)
+                .ToList()
+                ?? new List<string>();
+        }
+        catch
+        {
+            serverFiles = new List<string>();
+        }
+    }
+
+
+    //Delete file from server
+    private async Task DeleteServerFile(string fileName)
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+
+            await httpClient.DeleteAsync(
+                "https://localhost:7046/api/files/" +
+                Uri.EscapeDataString(fileName));
+
+            await LoadServerFiles();
+            StateHasChanged();
+        }
+        catch
+        {
+            // Handle error if needed
+        }
+    }
+
+
+    // Open separate File Client
+    private void OpenFileClient()
+    {
+        NavigationManager.NavigateTo(
+            "http://localhost:5093/index.html",
+            forceLoad: true);
+    }
+
+
+    // File information returned by API
+    public class FileInfoDto
+    {
+        public string FileName { get; set; } = "";
+    }
+
+}

@@ -1,0 +1,88 @@
+﻿@namespace FitnessCenterBlazor.Components.Pages.PartialView
+
+@using FitnessCenterBlazor.Models
+
+<div class="crud-form">
+
+    
+    <h3>
+        @(EditMode ? "Edit Record" : "Add New Record")
+    </h3>
+
+    @if (Columns == null || Columns.Count == 0)
+    {
+        <p>No editable columns were found.</p>
+    }
+    else
+    {
+        @foreach (var column in Columns)
+        {
+            @if (!column.IsAutoIncrement)
+            {
+                <div class="form-field">
+
+                    <label>
+                        @column.Name
+                    </label>
+
+                    <input type="text"
+                           @bind="Values[column.Name]"
+                           @bind:event="oninput" />
+
+                </div>
+            }
+        }
+
+        <div class="form-buttons">
+
+            <button type="button"
+                    @onclick="SaveClicked">
+                Save
+            </button>
+
+            <button type="button"
+                    @onclick="CancelClicked">
+                Cancel
+            </button>
+
+        </div>
+    }
+    
+
+</div>
+
+@code
+{
+    [Parameter]
+    public string TableName { get; set; } = "";
+
+
+[Parameter]
+    public List<ColumnInfo> Columns { get; set; } = new();
+
+    [Parameter]
+    public Dictionary<string, string> Values { get; set; } = new();
+
+    [Parameter]
+    public bool EditMode { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+
+    private async Task SaveClicked()
+    {
+        await OnSave.InvokeAsync();
+    }
+
+
+    private async Task CancelClicked()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+
+}

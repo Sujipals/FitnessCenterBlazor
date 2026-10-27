@@ -1,0 +1,97 @@
+﻿@using FitnessCenterBlazor.Services
+
+@implements IDisposable
+
+@inject DatabaseMonitorService MonitorService
+
+<div class="database-status">
+
+    
+    <h3>📊 Database Status</h3>
+
+    @if (MonitorService.TableRowCounts.Count == 0)
+    {
+        <p>Loading database information...</p>
+    }
+    else
+    {
+        <p class="status-message">
+            Database is running — live information
+        </p>
+
+        <div class="table-count">
+            <strong>Tables:</strong>
+            @MonitorService.TableRowCounts.Count
+        </div>
+
+        @foreach (var table in MonitorService.TableRowCounts)
+        {
+            <div class="table-row">
+                <span>@table.Key</span><!-- Table name stays normal -->
+
+                
+                <strong>
+                    @table.Value rows
+                </strong>
+            </div>
+        }
+    }
+   
+
+</div>
+
+@code
+{
+    private System.Threading.Timer? _timer;
+    
+    protected override void OnInitialized()
+    {
+        // Refresh the component every 2 seconds.
+        _timer = new Timer(async _ =>
+            {
+                await InvokeAsync(StateHasChanged);
+            },
+            null,
+            0,
+            2000);
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+
+
+}
+
+<style>
+    .database-status {
+        margin-top: 30px;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+    }
+
+        .database-status h3 {
+            margin-bottom: 10px;
+        }
+
+    .status-message {
+        color: green;
+        font-weight: bold;
+    }
+
+    .table-count {
+        margin-bottom: 15px;
+    }
+
+    .table-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 12px;
+        margin-bottom: 5px;
+        background-color: white;
+        border-radius: 5px;
+    }
+</style>

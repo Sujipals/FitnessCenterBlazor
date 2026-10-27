@@ -1,0 +1,16 @@
+﻿@if (string.IsNullOrEmpty(TableName))
+{
+    <p>Please select a table.</p>
+}
+else
+{
+    <h2>@TableName</h2>
+
+    <p>Selected table: @TableName</p>
+}
+
+@code
+{
+    [Parameter]
+    public string TableName { get; set; } = "";
+}

@@ -1,0 +1,84 @@
+﻿@using FitnessCenterBlazor.Services
+
+@inject LanguageState LanguageState
+
+<div class="language-container">
+
+   
+    <button type="button"
+            class="language-button"
+            @onclick="ToggleLanguageMenu">
+
+        @if (LanguageState.CurrentLanguage == "Danish")
+        {
+            <img src="images/dk.png"
+                 alt="Denmark" />
+
+            <span>Dansk</span>
+        }
+        else
+        {
+            <img src="images/gb.png"
+                 alt="United Kingdom" />
+
+            <span>English</span>
+        }
+
+        <span class="arrow">▼</span>
+
+    </button>
+
+    @if (showLanguageMenu)
+    {
+        <div class="language-menu">
+
+            <button type="button"
+                    @onclick="SelectDanish">
+
+                <img src="images/dk.png"
+                     alt="Denmark" />
+
+                <span>Dansk</span>
+
+            </button>
+
+            <button type="button"
+                    @onclick="SelectEnglish">
+
+                <img src="images/gb.png"
+                     alt="United Kingdom" />
+
+                <span>English</span>
+
+            </button>
+
+        </div>
+    }
+    
+
+</div>
+
+@code
+{
+    private bool showLanguageMenu = false;
+
+
+private void ToggleLanguageMenu()
+    {
+        showLanguageMenu = !showLanguageMenu;
+    }
+
+    private void SelectDanish()
+    {
+        LanguageState.SetLanguage("Danish");
+        showLanguageMenu = false;
+    }
+
+    private void SelectEnglish()
+    {
+        LanguageState.SetLanguage("English");
+        showLanguageMenu = false;
+    }
+
+
+}

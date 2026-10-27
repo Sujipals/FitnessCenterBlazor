@@ -1,0 +1,113 @@
+﻿
+@namespace FitnessCenterBlazor.Components.Pages.PartialView
+
+@using System.Data
+@using Microsoft.AspNetCore.Components
+@using FitnessCenterBlazor.Models
+
+@if (Data == null)
+{
+    <p>Please select a table.</p>
+}
+else if (Data.Rows.Count == 0)
+{
+    <p>The table contains no rows.</p>
+}
+else
+{
+    <table class="data-table">
+
+        <thead>
+            <tr>
+
+                @foreach (DataColumn column in Data.Columns)
+                {
+                    <th>
+                        @column.ColumnName
+                    </th>
+                }
+
+                <th>
+                    Actions
+                </th>
+
+            </tr>
+        </thead>
+
+        <tbody>
+
+            @foreach (DataRow row in Data.Rows)
+            {
+                <tr @key="GetRowKey(row)">
+
+                    @foreach (DataColumn column in Data.Columns)
+                    {
+                        <td>
+                            @row[column]
+                        </td>
+                    }
+
+                    <td>
+
+                        <button type="button"
+                                @onclick="() => EditClicked(row)">
+                            Edit
+                        </button>
+
+                        <button type="button"
+                                @onclick="() => DeleteClicked(row)">
+                            Delete
+                        </button>
+
+                    </td>
+
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+}
+
+@code
+{
+    [Parameter]
+    public DataTable? Data { get; set; }
+
+    [Parameter]
+    public List<ColumnInfo> Columns { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<DataRow> EditRow { get; set; }
+
+    [Parameter]
+    public EventCallback<DataRow> DeleteRow { get; set; }
+
+
+    private object GetRowKey(DataRow row)
+    {
+        var primaryKey =
+            Columns.FirstOrDefault(
+                column => column.IsPrimaryKey);
+
+        if (primaryKey == null)
+        {
+            return row.Table.Rows.IndexOf(row);
+        }
+
+        return row[primaryKey.Name];
+    }
+
+
+    private async Task EditClicked(DataRow row)
+    {
+        await EditRow.InvokeAsync(row);
+    }
+
+
+    private async Task DeleteClicked(DataRow row)
+    {
+        await DeleteRow.InvokeAsync(row);
+    }
+}
+

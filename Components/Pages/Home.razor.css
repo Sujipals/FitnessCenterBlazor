@@ -1,0 +1,102 @@
+﻿.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+h1 {
+    margin-bottom: 10px;
+}
+
+.table-selector {
+    margin: 25px 0;
+}
+
+    .table-selector label {
+        font-weight: bold;
+        margin-right: 10px;
+    }
+
+    .table-selector select {
+        padding: 8px;
+        min-width: 220px;
+    }
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+button {
+    padding: 8px 14px;
+    margin: 3px;
+    cursor: pointer;
+}
+
+.add-button {
+    font-weight: bold;
+}
+
+.data-form {
+    border: 1px solid #cccccc;
+    padding: 20px;
+    margin-bottom: 25px;
+    max-width: 500px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .form-group input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+    }
+
+.form-buttons {
+    margin-top: 20px;
+}
+
+.data-table {
+    width: 100%;
+    overflow-x: auto;
+}
+
+    .data-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table th {
+        border: 1px solid #cccccc;
+        padding: 10px;
+        text-align: left;
+        font-weight: bold;
+    }
+
+    .data-table td {
+        border: 1px solid #cccccc;
+        padding: 10px;
+    }
+
+.information-box {
+    border: 1px solid #cccccc;
+    padding: 20px;
+    margin-top: 25px;
+}
+
+.error-message {
+    border: 1px solid red;
+    padding: 12px;
+    margin: 15px 0;
+}

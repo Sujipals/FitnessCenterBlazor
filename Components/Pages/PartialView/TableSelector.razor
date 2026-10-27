@@ -1,0 +1,43 @@
+﻿@namespace FitnessCenterBlazor.Components.Pages.PartialView
+@using FitnessCenterBlazor.Models
+@using Microsoft.AspNetCore.Components
+
+
+<div class="table-selector">    
+    <label for="tableSelect"> Select table: </label>
+
+    <select id="tableSelect" value="@SelectedTable" @onchange="TableChanged">
+
+        <option value=""> -- Select table -- </option>
+
+        @foreach (var table in Tables)
+        {
+            <option value="@table"> @table </option>
+        }
+
+    </select>   
+
+</div>
+
+@code
+{
+    [Parameter]
+    public List<string> Tables { get; set; } = new();
+
+[Parameter]
+    public string SelectedTable { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> SelectedTableChanged { get; set; }
+
+
+    private async Task TableChanged(ChangeEventArgs e)
+    {
+        string tableName =
+            e.Value?.ToString() ?? "";
+
+        await SelectedTableChanged.InvokeAsync(tableName);
+    }
+
+
+}

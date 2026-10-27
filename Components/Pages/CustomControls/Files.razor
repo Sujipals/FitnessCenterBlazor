@@ -1,0 +1,258 @@
+﻿@page "/files"
+
+@using System.Net.Http.Json
+@inject NavigationManager NavigationManager
+
+<PageTitle>Files</PageTitle>
+
+<div class="file-page">
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
+
+    <div class="file-header">
+        <div>
+            <h1>📁 Files</h1>
+            <p>Manage files received from the client.</p>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         FILE MANAGEMENT
+         ===================================================== -->
+
+    <div class="file-management">
+        <div class="section-header">
+            <div>
+                <h2>Files received from client</h2>
+                <p>Files currently stored on the server.</p>
+            </div>
+
+            <button class="refresh-button"
+                    @onclick="LoadServerFiles">
+                🔄 Refresh
+            </button>
+        </div>
+
+
+        @if (serverFiles == null)
+        {
+            <div class="loading">
+                <span>⏳</span>
+                <p>Loading files...</p>
+            </div>
+        }
+        else if (serverFiles.Count == 0)
+        {
+            <div class="empty-files">
+                <span>📂</span>
+                <h3>No files yet</h3>
+                <p>
+                    Upload a file from the File Client.
+                </p>
+            </div>
+        }
+        else
+        {
+            <!-- =================================================
+                 FILE TABLE
+                 ================================================= -->
+            <div class="file-table-container">
+                <table class="file-table">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>File Size</th>
+                            <th>Last Modified</th>
+                            <th class="actions-column">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var file in serverFiles)
+                        {
+                            <tr>
+                                <!-- FILE NAME -->
+                                <td>
+                                    <div class="file-name">
+                                        <span class="file-icon">
+                                            @GetFileIcon(file.FileName)
+                                        </span>
+
+                                        <span>
+                                            @file.FileName
+                                        </span>
+                                    </div>
+                                </td>
+
+
+                                <!-- FILE SIZE -->
+                                <td>
+                                    @FormatFileSize(file.Size)
+                                </td>
+
+
+                                <!-- LAST MODIFIED -->
+                                <td>
+                                    <td>
+                                        @(file.LastModified.ToLocalTime().ToString("dd-MM-yyyy HH:mm"))
+                                    </td>
+                                </td>
+
+
+                                <!-- ACTIONS -->
+                                <td>
+                                    <div class="file-actions">
+                                               <button class="delete-button"
+                                                @onclick="() => DeleteServerFile(file.FileName)">
+                                            🗑 Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+
+@code {
+
+    // =====================================================
+    // SERVER FILE LIST
+    // =====================================================
+
+    private List<FileInfoDto>? serverFiles;
+
+
+    // =====================================================
+    // LOAD FILES WHEN PAGE OPENS
+    // =====================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServerFiles();
+    }
+
+
+    // =====================================================
+    // GET FILES FROM API
+    // =====================================================
+
+    private async Task LoadServerFiles()
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            var files =
+                await httpClient.GetFromJsonAsync<List<FileInfoDto>>(
+                    "https://localhost:7046/api/files");
+            serverFiles = files ?? new List<FileInfoDto>();
+        }
+        catch
+        {
+            serverFiles = new List<FileInfoDto>();
+        }
+    }
+
+
+
+    // =====================================================
+    // DELETE FILE
+    // =====================================================
+
+    private async Task DeleteServerFile(string fileName)
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+
+            var response = await httpClient.DeleteAsync(
+                "https://localhost:7046/api/files/"
+                + Uri.EscapeDataString(fileName));
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadServerFiles();
+            }
+        }
+        catch
+        {
+            // Handle error if needed
+        }
+    }
+
+
+    // =====================================================
+    // OPEN FILE CLIENT
+    // =====================================================
+
+   // private void OpenFileClient(){
+      //  NavigationManager.NavigateTo("http://localhost:5093/index.html",forceLoad: true);}
+
+
+    // =====================================================
+    // FORMAT FILE SIZE
+    // =====================================================
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        if (bytes < 1024 * 1024)
+        {
+            return $"{bytes / 1024.0:F1} KB";
+        }
+
+        if (bytes < 1024 * 1024 * 1024)
+        {
+            return $"{bytes / (1024.0 * 1024.0):F1} MB";
+        }
+
+        return $"{bytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
+    }
+
+
+    // =====================================================
+    // FILE ICON
+    // =====================================================
+
+    private string GetFileIcon(string fileName)
+    {
+        var extension = Path.GetExtension(fileName)
+            .ToLowerInvariant();
+
+        return extension switch
+        {
+            ".pdf" => "📕",
+            ".docx" => "📘",
+            ".csv" => "📊",
+            ".txt" => "📄",
+            _ => "📁"
+        };
+    }
+
+
+    // =====================================================
+    // FILE DTO
+    // =====================================================
+
+    public class FileInfoDto
+    {
+        public string FileName { get; set; } = "";
+
+        public long Size { get; set; }
+
+        public DateTime LastModified { get; set; }
+    }
+
+}
